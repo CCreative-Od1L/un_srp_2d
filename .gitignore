@@ -33,3 +33,6 @@ Packages/*.zip
 
 # ⚠️ 重要：Unity 的 .meta 文件必须提交！此处故意不忽略。
 # ⚠️ 重要：Assets/、ProjectSettings/、Packages/manifest.json 必须提交。
+
+.kilo/
+Plans/

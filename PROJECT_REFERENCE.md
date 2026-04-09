@@ -81,15 +81,15 @@ un_srp_2d/
 
 | # | Scene Name | Skill / Feature Practiced | Status |
 |---|---|---|---|
-| 1 | *(to be created)* | | |
+| 1 | `PlayerMovement` | 2D character movement pipeline (Input → Process → Physics) | In Progress |
 | 2 | *(to be created)* | | |
 
-### Existing Scenes (default / scaffold)
+### Existing Scenes
 
 | Scene | Notes |
 |---|---|
 | `SampleScene.unity` | Default URP 2D scene — may be reused or replaced |
-| `UntitleScene.unity` | Empty placeholder |
+| `PlayerMovement.unity` | Practice scene for player movement flow |
 
 ---
 
