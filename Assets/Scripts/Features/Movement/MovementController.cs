@@ -10,7 +10,7 @@ namespace UnSrp2d.Features.Movement
         [SerializeField] Rigidbody2D _rb;
 
         [Inject]
-        readonly MovementProcessor _processor;
+        MovementProcessor _processor;
 
         public IMovementStateProvider StateProvider => _processor;
 

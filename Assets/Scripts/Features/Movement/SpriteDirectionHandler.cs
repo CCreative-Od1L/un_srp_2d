@@ -10,7 +10,7 @@ namespace UnSrp2d.Features.Movement
         [SerializeField] SpriteRenderer _renderer;
 
         [Inject]
-        readonly IMovementStateProvider _stateProvider;
+        IMovementStateProvider _stateProvider;
 
         void LateUpdate()
         {
