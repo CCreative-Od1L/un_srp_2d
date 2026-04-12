@@ -9,11 +9,23 @@ namespace UnSrp2d.Features.Movement
     {
         [SerializeField] SpriteRenderer _renderer;
 
-        [Inject]
         IMovementStateProvider _stateProvider;
+
+        [Inject]
+        public void Construct(IMovementStateProvider stateProvider)
+        {
+            _stateProvider = stateProvider;
+        }
+
+        void Awake()
+        {
+            if (_renderer == null)
+                _renderer = GetComponent<SpriteRenderer>();
+        }
 
         void LateUpdate()
         {
+            if (_stateProvider == null) return;
             _renderer.flipX = _stateProvider.CurrentState.Direction.x < 0;
         }
     }

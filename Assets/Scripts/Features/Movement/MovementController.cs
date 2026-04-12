@@ -9,13 +9,26 @@ namespace UnSrp2d.Features.Movement
     {
         [SerializeField] Rigidbody2D _rb;
 
-        [Inject]
         MovementProcessor _processor;
 
         public IMovementStateProvider StateProvider => _processor;
 
+        [Inject]
+        public void Construct(MovementProcessor processor)
+        {
+            _processor = processor;
+        }
+
+        void Awake()
+        {
+            if (_rb == null)
+                _rb = GetComponent<Rigidbody2D>();
+        }
+
         void FixedUpdate()
         {
+            if (_processor == null) return;
+            
             var actualVelocity = _rb.velocity;
             _processor.Tick(Time.fixedDeltaTime, actualVelocity);
             _rb.velocity = _processor.CurrentState.Velocity;
