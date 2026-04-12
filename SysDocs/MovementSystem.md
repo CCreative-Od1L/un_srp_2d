@@ -2,7 +2,7 @@
 
 > Feature: 2D top-down character movement pipeline  
 > Scene: `PlayerMovement.unity`  
-> Status: Design Confirmed
+> Status: Implemented
 
 ---
 
@@ -13,9 +13,9 @@ A generic, reusable movement system supporting different entity types (Player, E
 ### Data Flow
 
 ```
-InputActionAsset (generated C# class)
+InputActionAsset (.inputactions file)
   → InputActionProvider (MonoBehaviour, IInputProvider)
-    → IMovementStrategy (e.g., InputMovementStrategy)
+    → InputMovementStrategy (IMovementStrategy)
       → MovementProcessor (pure C#, IMovementStateProvider)
         → MovementController (MonoBehaviour → Rigidbody2D)
         → SpriteDirectionHandler (reads IMovementStateProvider)
@@ -66,7 +66,7 @@ InputActionAsset (generated C# class)
 
 | Class | Base | Registered In |
 |---|---|---|
-| `InputActionProvider` | MonoBehaviour, `IInputProvider` | Scene Scope (`FromComponentInHierarchy`) |
+| `InputActionProvider` | MonoBehaviour, `IInputProvider` | Scene Scope (`RegisterComponentInHierarchy`) |
 
 ### Feature/Movement Implementations
 
@@ -105,7 +105,7 @@ Tick(deltaTime, actualVelocity):
 | Decision | Choice |
 |---|---|
 | Input system | New Input System |
-| Asset management | Generate C# class (type-safe) + manual Enable/Disable |
+| Asset management | `.inputactions` file + `[SerializeField] InputActionAsset` reference |
 | PlayerInput component | Not used — `InputActionProvider` manages lifecycle |
 | Composite binding | 2D Vector Composite (WASD / Arrow keys / Gamepad left stick) |
 | Read timing | Update: cache input value; FixedUpdate: consume cached value |
@@ -116,7 +116,7 @@ Tick(deltaTime, actualVelocity):
 
 ## ActualVelocity Read-back Strategy
 
-Strategy A: Next-frame read-back (confirmed)
+Strategy A: Next-frame read-back (implemented)
 
 ```
 FixedUpdate:
@@ -129,38 +129,46 @@ FixedUpdate:
 
 ---
 
-## DI Registration
+## DI Registration (VContainer)
 
 ### Scene Scope: `PlayerMovementLifetimeScope`
 
 ```csharp
-builder.Bind<IInputProvider>()
-       .FromComponentInHierarchy()
-       .AsCached();
+protected override void Configure(IContainerBuilder builder)
+{
+    builder.RegisterComponentInHierarchy<InputActionProvider>()
+        .As<IInputProvider>();
 
-builder.Bind<IInputConfig>()
-       .FromInstance(_inputConfig) // [SerializeField] InputConfig
-       .AsCached();
+    builder.RegisterInstance<IInputConfig>(_inputConfig);
+}
 ```
 
 ### Entity Scope (child, on Prefab)
 
 ```csharp
-var paramsProvider = new DefaultMovementParamsProvider(_movementParams);
-builder.Bind<IMovementParamsProvider>()
-       .FromInstance(paramsProvider)
-       .AsCached();
-builder.Bind<IMovementStrategy>()
-       .To<InputMovementStrategy>()
-       .AsCached();
-builder.Bind<MovementProcessor>()
-       .AsCached();
+protected override void Configure(IContainerBuilder builder)
+{
+    var paramsProvider = new DefaultMovementParamsProvider(_movementParams);
+    builder.RegisterInstance<IMovementParamsProvider>(paramsProvider);
+
+    builder.Register<InputMovementStrategy>(Lifetime.Singleton)
+        .As<IMovementStrategy>();
+
+    builder.Register<MovementProcessor>(Lifetime.Singleton)
+        .AsSelf()
+        .AsImplementedInterfaces();
+
+    builder.RegisterComponentInHierarchy<MovementController>();
+    builder.RegisterComponentInHierarchy<SpriteDirectionHandler>();
+}
 ```
 
-- `InputMovementStrategy` auto-resolves `IInputProvider` + `IInputConfig` from parent scope
-- `MovementProcessor` auto-resolves `IMovementStrategy` + `IMovementParamsProvider`
-- MonoBehaviour injection: `[Inject]` attribute, auto-injected for pre-placed objects
-- Runtime-instantiated prefabs: `scope.Inject(gameObject)` required
+### Injection Rules
+
+- **Pure C# classes**: Constructor injection (e.g., `MovementProcessor`, `InputMovementStrategy`)
+- **MonoBehaviour**: Method injection with `[Inject]` attribute (e.g., `MovementController.Construct()`)
+- `RegisterComponentInHierarchy<T>()` finds scene components and injects dependencies
+- Child scope auto-resolves dependencies from parent scope
 
 ---
 
@@ -193,6 +201,29 @@ Namespaces follow folder hierarchy under `Assets/Scripts/`:
 | `Features/Movement/` | `UnSrp2d.Features.Movement` |
 | `Infrastructure/Adapters/` | `UnSrp2d.Infrastructure.Adapters` |
 | `Infrastructure/DI/` | `UnSrp2d.Infrastructure.DI` |
+
+---
+
+## Scene Setup
+
+```
+Scene Hierarchy:
+├── InputSystem (GameObject)
+│   ├── InputActionProvider (MonoBehaviour)
+│   │   └── Action Asset → PlayerInputActions.inputactions
+│   └── PlayerMovementLifetimeScope (MonoBehaviour)
+│       └── Input Config → InputConfig.asset
+│
+└── Player (GameObject)
+    ├── SpriteRenderer
+    ├── Rigidbody2D (Dynamic, GravityScale=0)
+    ├── BoxCollider2D
+    ├── MovementController (MonoBehaviour)
+    ├── SpriteDirectionHandler (MonoBehaviour)
+    └── EntityLifetimeScope (MonoBehaviour)
+        ├── Movement Params → MovementParams.asset
+        └── Parent → PlayerMovementLifetimeScope (component reference)
+```
 
 ---
 
