@@ -36,7 +36,25 @@ Each **scene** in this project is dedicated to practicing a specific Unity game-
 ```
 un_srp_2d/
 ├── Assets/
+│   ├── Inputs/              # Input Action Assets & generated C# classes
 │   ├── Scenes/              # Unity scene files (one per practice topic)
+│   ├── Scripts/             # All C# source code (mirrors root Scripts/ structure)
+│   │   ├── Bootstrap/       # App entry-point & initialization
+│   │   ├── Core/            # Domain layer (framework-free)
+│   │   │   ├── Contracts/   # Interfaces & abstractions
+│   │   │   ├── Entities/    # Domain entities
+│   │   │   └── UseCases/    # Business logic / interactors
+│   │   ├── Features/        # Feature modules (per-scene logic)
+│   │   │   ├── Inventory/
+│   │   │   ├── Level/
+│   │   │   ├── Movement/    # Generic movement system (Strategy + Processor + Controller)
+│   │   │   ├── Player/
+│   │   │   └── UI/
+│   │   ├── Infrastructure/  # External-facing implementations
+│   │   │   ├── Adapters/    # Unity API wrappers & adapters
+│   │   │   ├── Data/        # Persistence / data access
+│   │   │   └── DI/          # VContainer lifetime scopes & registrations
+│   │   └── Shared/          # Cross-cutting utilities & extensions
 │   └── Settings/            # URP & renderer settings
 │       ├── Renderer2D.asset
 │       ├── UniversalRP.asset
@@ -44,22 +62,7 @@ un_srp_2d/
 ├── Art/                     # Sprites, textures, visual assets
 ├── Audio/                   # Sound effects & music
 ├── Configs/                 # Game configuration / data assets
-├── Scripts/                 # All C# source code
-│   ├── Bootstrap/           # App entry-point & initialization
-│   ├── Core/                # Domain layer (framework-free)
-│   │   ├── Contracts/       # Interfaces & abstractions
-│   │   ├── Entities/        # Domain entities
-│   │   └── UseCases/        # Business logic / interactors
-│   ├── Features/            # Feature modules (per-scene logic)
-│   │   ├── Inventory/
-│   │   ├── Level/
-│   │   ├── Player/
-│   │   └── UI/
-│   ├── Infrastructure/      # External-facing implementations
-│   │   ├── Adapters/        # Unity API wrappers & adapters
-│   │   ├── Data/            # Persistence / data access
-│   │   └── DI/              # VContainer lifetime scopes & registrations
-│   └── Shared/              # Cross-cutting utilities & extensions
+├── SysDocs/                 # Detailed system design documents
 ├── Packages/
 │   ├── manifest.json
 │   └── packages-lock.json
@@ -69,9 +72,10 @@ un_srp_2d/
 ### Architecture Notes
 
 - **Clean Architecture** separation: `Core` has zero Unity dependencies; `Infrastructure` and `Features` depend on `Core`, not the other way around.
-- **VContainer** is used for DI — each scene should have its own `LifetimeScope`.
+- **VContainer** is used for DI — scene-level Scope + entity-level child Scopes. Shared services in scene scope, entity-specific bindings in child scope.
 - **UniTask** replaces coroutines for async operations.
-- **New Input System** is enabled (old Input Manager is also present in ProjectSettings for backward compatibility).
+- **New Input System** is enabled (old Input Manager is also present in ProjectSettings for backward compatibility). Input Action Assets use generated C# class + manual code management.
+- **Feature folders** in `Scripts/Features/` hold generic, reusable systems (e.g., `Movement/`). `Shared/` is reserved for utilities, extensions, and global events.
 
 ---
 
@@ -81,7 +85,7 @@ un_srp_2d/
 
 | # | Scene Name | Skill / Feature Practiced | Status |
 |---|---|---|---|
-| 1 | `PlayerMovement` | 2D character movement pipeline (Input → Process → Physics) | In Progress |
+| 1 | `PlayerMovement` | 2D character movement pipeline (Input → Process → Physics) | Implementing |
 | 2 | *(to be created)* | | |
 
 ### Existing Scenes
@@ -99,3 +103,5 @@ un_srp_2d/
 - **Feature folders** in `Scripts/Features/` correspond to the scene or domain area they serve.
 - **DI scopes** go in `Scripts/Infrastructure/DI/`; register per-scene dependencies there.
 - **No production pressure** — prioritize learning, experimentation, and clean code over shipping.
+- **Namespace convention** follows folder hierarchy under `Assets/Scripts/`, e.g. `UnSrp2d.Core.Contracts`, `UnSrp2d.Features.Movement`.
+- **Detailed system docs** go in `SysDocs/` — one document per feature/system.

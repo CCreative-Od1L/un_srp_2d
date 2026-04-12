@@ -35,4 +35,3 @@ Packages/*.zip
 # ⚠️ 重要：Assets/、ProjectSettings/、Packages/manifest.json 必须提交。
 
 .kilo/
-Plans/
