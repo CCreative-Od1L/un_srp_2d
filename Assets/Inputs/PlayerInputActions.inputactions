@@ -1,4 +1,5 @@
 {
+    "version": 1,
     "name": "PlayerInputActions",
     "maps": [
         {
@@ -241,5 +242,28 @@
             ]
         }
     ],
-    "controlSchemes": []
+    "controlSchemes": [
+        {
+            "name": "Keyboard",
+            "id": "11110000-0000-0000-0000-000000000001",
+            "devices": [
+                {
+                    "devicePath": "Keyboard",
+                    "isOptional": false,
+                    "isOR": false
+                }
+            ]
+        },
+        {
+            "name": "Gamepad",
+            "id": "22220000-0000-0000-0000-000000000002",
+            "devices": [
+                {
+                    "devicePath": "Gamepad",
+                    "isOptional": false,
+                    "isOR": false
+                }
+            ]
+        }
+    ]
 }
