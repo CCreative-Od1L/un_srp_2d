@@ -16,6 +16,9 @@ namespace UnSrp2d.Infrastructure.DI
             builder.RegisterComponentInHierarchy<InputActionProvider>()
                 .As<IInputProvider>();
 
+            builder.RegisterComponentInHierarchy<CameraInputProvider>()
+                .As<ICameraInput>();
+
             builder.RegisterInstance<IInputConfig>(_inputConfig);
         }
     }

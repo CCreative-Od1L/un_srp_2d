@@ -21,21 +21,21 @@ namespace UnSrp2d.Features.Movement
 
         public MovementState Tick(float deltaTime, Vector2 actualVelocity)
         {
-            var direction = _strategy.GetDirection();
-            var targetVelocity = direction * _params.MaxSpeed;
+            var input = _strategy.GetMovementInput();
+            var targetVelocity = input.Direction * _params.MaxSpeed * input.Magnitude;
 
-            var maxDelta = direction != Vector2.zero
+            var maxDelta = input.Magnitude > 0f
                 ? _params.Acceleration * deltaTime
                 : _params.Deceleration * deltaTime;
 
             _currentVelocity = Vector2.MoveTowards(_currentVelocity, targetVelocity, maxDelta);
             _currentVelocity = Vector2.ClampMagnitude(_currentVelocity, _params.MaxSpeed);
 
-            if (direction == Vector2.zero && _currentVelocity.magnitude < _params.MinMoveSpeed)
+            if (input.Magnitude <= 0f && _currentVelocity.magnitude < _params.MinMoveSpeed)
                 _currentVelocity = Vector2.zero;
 
-            if (direction != Vector2.zero)
-                _lastDirection = direction;
+            if (input.Direction != Vector2.zero)
+                _lastDirection = input.Direction;
 
             var speed = _currentVelocity.magnitude;
 

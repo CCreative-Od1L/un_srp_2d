@@ -14,14 +14,16 @@ namespace UnSrp2d.Features.Movement
             _inputConfig = inputConfig;
         }
 
-        public Vector2 GetDirection()
+        public MovementInput GetMovementInput()
         {
             var raw = _inputProvider.MoveDirection;
+            var magnitude = raw.magnitude;
 
-            if (raw.magnitude < _inputConfig.Deadzone)
-                return Vector2.zero;
+            if (magnitude < _inputConfig.Deadzone)
+                return MovementInput.Zero;
 
-            return raw.normalized;
+            var remappedMagnitude = Mathf.InverseLerp(_inputConfig.Deadzone, 1f, magnitude);
+            return new MovementInput(raw.normalized, remappedMagnitude);
         }
     }
 }
