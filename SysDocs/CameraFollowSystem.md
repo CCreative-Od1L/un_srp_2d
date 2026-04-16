@@ -20,6 +20,8 @@ Camera system that smoothly follows the player with configurable damping and res
 | 1 | Smooth follow with velocity change on start/stop | Cinemachine Virtual Camera Damping |
 | 2 | Camera constrained within scene bounds | Cinemachine Confiner 2D |
 | 3 | Keep player centered on screen | Virtual Camera Follow target |
+| 4 | Camera zoom with keyboard | Tab (mode) + Q/E (zoom in/out) |
+| 5 | Camera zoom with gamepad | Left Shoulder L1 (mode) + RT (zoom in) / LT (zoom out) |
 
 ---
 
@@ -39,6 +41,7 @@ Camera system that smoothly follows the player with configurable damping and res
 Scene Root
 ├── InputSystem
 │   ├── InputActionProvider
+│   ├── CameraInputProvider
 │   └── PlayerMovementLifetimeScope
 │
 ├── Player
@@ -50,16 +53,18 @@ Scene Root
 │   └── EntityLifetimeScope
 │
 ├── Main Camera
-│   └── (Remove Camera component, keep only Transform)
+│   └── (Transform only — no Camera component)
 │
 ├── CM vcam1 (Cinemachine Virtual Camera)
 │   ├── Follow → Player (Transform)
 │   ├── Lens → Orthographic Size: 5
-│   └── Body → Framing Transposer
+│   ├── Body → Framing Transposer
+│   ├── CameraZoomController
+│   └── CameraLifetimeScope
 │
 └── CameraBounds (Empty GameObject)
     ├── CompositeCollider2D (defines scene boundary)
-    └── CameraBoundsDebug (MonoBehaviour, draws Gizmos)
+    └── Collider2DGizmos
 ```
 
 ---
@@ -170,6 +175,92 @@ Final camera position
 
 ---
 
+## Camera Zoom System
+
+### Overview
+
+The zoom system adjusts `CinemachineVirtualCamera`'s `OrthographicSize` via a two-step input model: a **mode key** (must be held) gates zoom input, then any configured zoom key adjusts the camera.
+
+### Interaction Model
+
+| Input Device | Mode Toggle | Zoom In | Zoom Out |
+|---|---|---|---|
+| **Keyboard** | Hold Tab | Q | E |
+| **Gamepad** | Hold Left Shoulder (L1) | Right Trigger (RT) | Left Trigger (LT) |
+
+- **Hold-to-zoom:** Releasing the mode key immediately exits zoom mode — no toggle state to forget
+- **Any two keys:** Any two distinct keys can be bound to ZoomIn/ZoomOut via `.inputactions` Camera action map
+
+### Data Flow
+
+```
+InputActionAsset (Camera action map)
+    │
+    ├── ZoomMode action  ──→ CameraInputProvider.IsZoomModeActive
+    ├── ZoomIn action   ──→ CameraInputProvider.IsZoomInPressed
+    └── ZoomOut action  ──→ CameraInputProvider.IsZoomOutPressed
+            │
+            ▼
+    CameraZoomController.Update()
+        │
+        ├── Reads ICameraInput flags
+        ├── Adjusts _currentOrthographicSize (± ZoomSpeed * deltaTime)
+        ├── Clamps to [MinOrthographicSize, MaxOrthographicSize]
+        └── Writes to CinemachineVirtualCamera.m_Lens.OrthographicSize
+```
+
+### Components
+
+| Component | Type | Purpose |
+|---|---|---|
+| `CameraInputProvider` | MonoBehaviour | Reads Camera action map from InputActionAsset, exposes `ICameraInput` |
+| `CameraZoomController` | MonoBehaviour | Adjusts `OrthographicSize` based on `ICameraInput` |
+| `CameraZoomParams` | ScriptableObject | Tuning: min/max zoom, zoom speed, default size |
+
+### ICameraInput Interface
+
+| Property | Type | Description |
+|---|---|---|
+| `IsZoomModeActive` | `bool` | True while mode key is held |
+| `IsZoomInPressed` | `bool` | True if zoom-in key is pressed (only meaningful when `IsZoomModeActive`) |
+| `IsZoomOutPressed` | `bool` | True if zoom-out key is pressed (only meaningful when `IsZoomModeActive`) |
+
+### Zoom Params (CameraZoomParams)
+
+| Field | Default | Description |
+|---|---|---|
+| `MinOrthographicSize` | 2.0 | Closest zoom (most zoomed in) |
+| `MaxOrthographicSize` | 10.0 | Farthest zoom (most zoomed out) |
+| `ZoomSpeed` | 3.0 | Orthographic units per second |
+| `DefaultOrthographicSize` | 5.0 | Initial value on scene load |
+
+### DI Registration
+
+**Parent Scope (`PlayerMovementLifetimeScope`):**
+```csharp
+builder.RegisterComponentInHierarchy<CameraInputProvider>()
+    .As<ICameraInput>();
+```
+
+**Child Scope (`CameraLifetimeScope`):**
+```csharp
+builder.RegisterInstance<CameraZoomParams>(_zoomParams);
+builder.RegisterComponentInHierarchy<CameraZoomController>();
+```
+
+> `CameraLifetimeScope` must have its `Parent` reference pointing to `PlayerMovementLifetimeScope` to inherit `ICameraInput` registration.
+
+### Zoom Range Calculation
+
+Camera bounds must accommodate the zoom range:
+```
+Minimum boundary width  = MaxOrthographicSize × 2 × AspectRatio
+Minimum boundary height = MaxOrthographicSize × 2
+
+Example: MaxOrthographicSize = 10, AspectRatio = 16:9
+Minimum boundary ≈ 35.6 × 20
+```
+
 ## Debug Visualization
 
 Use `Collider2DGizmos` component to visualize any Collider2D bounds in Scene view and during runtime.
@@ -193,6 +284,11 @@ Use `Collider2DGizmos` component to visualize any Collider2D bounds in Scene vie
 
 | File | Purpose |
 |---|---|
+| `Assets/Scripts/Core/Contracts/ICameraInput.cs` | Interface for camera input abstraction |
+| `Assets/Scripts/Features/Camera/CameraZoomParams.cs` | ScriptableObject tuning asset |
+| `Assets/Scripts/Features/Camera/CameraZoomController.cs` | Zoom logic, writes to Cinemachine lens |
+| `Assets/Scripts/Infrastructure/Adapters/CameraInputProvider.cs` | Reads `.inputactions` Camera map |
+| `Assets/Scripts/Infrastructure/DI/CameraLifetimeScope.cs` | Child scope for camera DI |
 | `Assets/Scripts/Shared/Debug/Collider2DGizmos.cs` | Generic Collider2D debug visualization |
 
 ---

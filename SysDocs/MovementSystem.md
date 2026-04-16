@@ -32,9 +32,10 @@ InputActionAsset (.inputactions file)
 |---|---|
 | `IInputProvider` | Abstract input source, exposes `Vector2 MoveDirection` |
 | `IInputConfig` | Player input preferences, exposes `float Deadzone` |
-| `IMovementStrategy` | Provides movement direction for a given frame |
+| `IMovementStrategy` | Provides `MovementInput` (direction + magnitude) for a given frame; enables analog stick sensitivity |
 | `IMovementParamsProvider` | Provides movement parameters, reservable for decorator system |
 | `IMovementStateProvider` | Exposes current `MovementState` for consumers |
+| `ICameraInput` | Abstract camera input source, exposes zoom mode and direction states |
 
 ### MovementState (readonly struct)
 
@@ -46,6 +47,15 @@ InputActionAsset (.inputactions file)
 | `IsMoving` | `bool` | Speed > MinMoveSpeed (based on intended velocity) |
 | `ActualVelocity` | `Vector2` | Read back from Rigidbody2D (actual physics result, 1-frame delay) |
 | `IsActuallyMoving` | `bool` | ActualVelocity.magnitude > MinMoveSpeed |
+
+### MovementInput (readonly struct)
+
+| Field | Type | Description |
+|---|---|---|
+| `Direction` | `Vector2` | Normalized direction vector |
+| `Magnitude` | `float` | 0.0–1.0, analog stick pressure level after deadzone remapping |
+
+> **Analog Stick Sensitivity:** `Magnitude` is computed via `InverseLerp(Deadzone, 1.0, rawMagnitude)`, which remaps the deadzone-squashed range back to [0,1]. Light push = low magnitude = lower target speed; full push = magnitude 1.0 = full MaxSpeed.
 
 ### MovementParams (ScriptableObject)
 
@@ -85,18 +95,20 @@ InputActionAsset (.inputactions file)
 
 ```
 Tick(deltaTime, actualVelocity):
-  direction = strategy.GetDirection()
-  targetVelocity = direction * params.MaxSpeed
-  maxDelta = (direction != zero) ? params.Acceleration : params.Deceleration
+  input = strategy.GetMovementInput()          # MovementInput (direction + magnitude)
+  targetVelocity = input.Direction * params.MaxSpeed * input.Magnitude
+  maxDelta = (input.Magnitude > 0) ? params.Acceleration : params.Deceleration
   currentVelocity = MoveTowards(currentVelocity, targetVelocity, maxDelta * deltaTime)
   clamp currentVelocity magnitude to params.MaxSpeed
-  if direction == zero AND currentVelocity.magnitude < params.MinMoveSpeed:
+  if input.Magnitude <= 0 AND currentVelocity.magnitude < params.MinMoveSpeed:
     currentVelocity = zero
-  if direction != zero:
-    lastDirection = direction
+  if input.Direction != zero:
+    lastDirection = input.Direction
   build MovementState with currentVelocity and actualVelocity
   return MovementState
 ```
+
+> **Analog Sensitivity:** `input.Magnitude` scales `targetVelocity`, producing different max speeds for light vs. heavy stick pushes. Acceleration rate stays constant — only the target changes, naturally creating the "soft start" feel.
 
 ---
 
@@ -109,8 +121,24 @@ Tick(deltaTime, actualVelocity):
 | PlayerInput component | Not used — `InputActionProvider` manages lifecycle |
 | Composite binding | 2D Vector Composite (WASD / Arrow keys / Gamepad left stick) |
 | Read timing | Update: cache input value; FixedUpdate: consume cached value |
-| 8-dir normalization | `inputDir.normalized` in Strategy layer |
-| Deadzone | In `IMovementStrategy`, threshold from `IInputConfig` (player preference) |
+| Analog stick support | Magnitude remapped via `InverseLerp` after deadzone; enables pressure-sensitive movement |
+| Control schemes | Keyboard (WASD/Arrows), Gamepad (left stick) |
+
+### Action Maps
+
+| Action Map | Actions | Purpose |
+|---|---|---|
+| `Player` | Move (Vector2) | Movement input |
+| `Camera` | ZoomMode (Button), ZoomIn (Button), ZoomOut (Button) | Camera zoom control |
+
+### Input Bindings
+
+| Action | Keyboard | Gamepad |
+|---|---|---|
+| Move | WASD, Arrow Keys | Left Stick |
+| ZoomMode | Tab | Left Shoulder (L1/LB) |
+| ZoomIn | Q | Right Trigger (RT) |
+| ZoomOut | E | Left Trigger (LT) |
 
 ---
 
@@ -138,6 +166,9 @@ protected override void Configure(IContainerBuilder builder)
 {
     builder.RegisterComponentInHierarchy<InputActionProvider>()
         .As<IInputProvider>();
+
+    builder.RegisterComponentInHierarchy<CameraInputProvider>()
+        .As<ICameraInput>();
 
     builder.RegisterInstance<IInputConfig>(_inputConfig);
 }
@@ -211,18 +242,35 @@ Scene Hierarchy:
 ├── InputSystem (GameObject)
 │   ├── InputActionProvider (MonoBehaviour)
 │   │   └── Action Asset → PlayerInputActions.inputactions
+│   ├── CameraInputProvider (MonoBehaviour)
 │   └── PlayerMovementLifetimeScope (MonoBehaviour)
 │       └── Input Config → InputConfig.asset
 │
-└── Player (GameObject)
-    ├── SpriteRenderer
-    ├── Rigidbody2D (Dynamic, GravityScale=0)
-    ├── BoxCollider2D
-    ├── MovementController (MonoBehaviour)
-    ├── SpriteDirectionHandler (MonoBehaviour)
-    └── EntityLifetimeScope (MonoBehaviour)
-        ├── Movement Params → MovementParams.asset
-        └── Parent → PlayerMovementLifetimeScope (component reference)
+├── Player (GameObject)
+│   ├── SpriteRenderer
+│   ├── Rigidbody2D (Dynamic, GravityScale=0)
+│   ├── BoxCollider2D
+│   ├── MovementController (MonoBehaviour)
+│   ├── SpriteDirectionHandler (MonoBehaviour)
+│   └── EntityLifetimeScope (MonoBehaviour)
+│       ├── Movement Params → MovementParams.asset
+│       └── Parent → PlayerMovementLifetimeScope (component reference)
+│
+├── Main Camera
+│   └── (Transform only, no Camera component)
+│
+├── CM vcam1 (Cinemachine Virtual Camera)
+│   ├── Follow → Player (Transform)
+│   ├── Lens → Orthographic Size: 5
+│   ├── Body → Framing Transposer
+│   ├── CameraZoomController (MonoBehaviour)
+│   └── CameraLifetimeScope (MonoBehaviour, child scope)
+│       ├── Parent → PlayerMovementLifetimeScope
+│       └── Zoom Params → CameraZoomParams.asset
+│
+└── CameraBounds
+    ├── CompositeCollider2D
+    └── Collider2DGizmos
 ```
 
 ---

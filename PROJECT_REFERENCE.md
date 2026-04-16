@@ -45,6 +45,7 @@ un_srp_2d/
 │   │   │   ├── Entities/    # Domain entities
 │   │   │   └── UseCases/    # Business logic / interactors
 │   │   ├── Features/        # Feature modules (per-scene logic)
+│   │   │   ├── Camera/      # Camera zoom system (ZoomController + ZoomParams)
 │   │   │   ├── Inventory/
 │   │   │   ├── Level/
 │   │   │   ├── Movement/    # Generic movement system (Strategy + Processor + Controller)
@@ -85,7 +86,7 @@ un_srp_2d/
 
 | # | Scene Name | Skill / Feature Practiced | Status |
 |---|---|---|---|
-| 1 | `PlayerMovement` | 2D character movement pipeline (Input → Process → Physics) | Implementing |
+| 1 | `PlayerMovement` | 2D character movement pipeline (Input → Process → Physics) + Gamepad analog stick sensitivity + Camera zoom system | Implemented |
 | 2 | *(to be created)* | | |
 
 ### Existing Scenes
@@ -93,7 +94,7 @@ un_srp_2d/
 | Scene | Notes |
 |---|---|
 | `SampleScene.unity` | Default URP 2D scene — may be reused or replaced |
-| `PlayerMovement.unity` | Practice scene for player movement flow |
+| `PlayerMovement.unity` | Practice scene for movement flow, analog sensitivity, and camera zoom |
 
 ---
 
