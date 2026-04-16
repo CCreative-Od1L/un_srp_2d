@@ -13,6 +13,6 @@ namespace UnSrp2d.Core.Contracts
             Magnitude = magnitude;
         }
 
-        public static MovementInput Zero => new MovementInput(Vector2.zero, 0f);
+        public static MovementInput Zero => new(Vector2.zero, 0f);
     }
 }

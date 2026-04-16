@@ -11,7 +11,7 @@ namespace UnSrp2d.Infrastructure.DI
 
         protected override void Configure(IContainerBuilder builder)
         {
-            builder.RegisterInstance<CameraZoomParams>(_zoomParams);
+            builder.RegisterInstance(_zoomParams);
             builder.RegisterComponentInHierarchy<CameraZoomController>();
         }
     }

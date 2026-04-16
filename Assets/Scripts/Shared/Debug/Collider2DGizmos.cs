@@ -13,8 +13,8 @@ namespace UnSrp2d.Shared.Debug
         
         [Header("Display Options")]
         [SerializeField] bool _showInRuntime = true;
-        [SerializeField] Color _fillColor = new Color(1f, 0.5f, 0f, 0.3f);
-        [SerializeField] Color _outlineColor = new Color(1f, 0.5f, 0f, 1f);
+        [SerializeField] Color _fillColor = new(1f, 0.5f, 0f, 0.3f);
+        [SerializeField] Color _outlineColor = new(1f, 0.5f, 0f, 1f);
         [SerializeField] bool _showCorners = true;
 
         void OnDrawGizmosSelected()

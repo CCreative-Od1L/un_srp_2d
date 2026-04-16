@@ -22,7 +22,7 @@ namespace UnSrp2d.Features.Movement
         public MovementState Tick(float deltaTime, Vector2 actualVelocity)
         {
             var input = _strategy.GetMovementInput();
-            var targetVelocity = input.Direction * _params.MaxSpeed * input.Magnitude;
+            var targetVelocity = _params.MaxSpeed * input.Magnitude * input.Direction;
 
             var maxDelta = input.Magnitude > 0f
                 ? _params.Acceleration * deltaTime
