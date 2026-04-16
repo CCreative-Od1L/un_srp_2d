@@ -1,6 +1,6 @@
 # Project Reference — un_srp_2d
 
-> **Scope:** Personal practice project for Unity 2D development skills.  
+> **Scope:** Personal practice project for Unity 2D development skills.
 > **Not intended for production use.**
 
 ## Purpose
@@ -49,6 +49,7 @@ un_srp_2d/
 │   │   │   ├── Inventory/
 │   │   │   ├── Level/
 │   │   │   ├── Movement/    # Generic movement system (Strategy + Processor + Controller)
+│   │   │   ├── Npc/         # NPC AI: patrol movement + collision response
 │   │   │   ├── Player/
 │   │   │   └── UI/
 │   │   ├── Infrastructure/  # External-facing implementations
@@ -87,7 +88,7 @@ un_srp_2d/
 | # | Scene Name | Skill / Feature Practiced | Status |
 |---|---|---|---|
 | 1 | `PlayerMovement` | 2D character movement pipeline (Input → Process → Physics) + Gamepad analog stick sensitivity + Camera zoom system | Implemented |
-| 2 | *(to be created)* | | |
+| 2 | *(to be created)* | NPC AI: patrol movement + collision response | Planned |
 
 ### Existing Scenes
 
@@ -106,3 +107,116 @@ un_srp_2d/
 - **No production pressure** — prioritize learning, experimentation, and clean code over shipping.
 - **Namespace convention** follows folder hierarchy under `Assets/Scripts/`, e.g. `UnSrp2d.Core.Contracts`, `UnSrp2d.Features.Movement`.
 - **Detailed system docs** go in `SysDocs/` — one document per feature/system.
+
+---
+
+## Key Interfaces (Core/Contracts)
+
+| Interface | Purpose |
+|---|---|
+| `IInputProvider` | Exposes `MoveDirection` Vector2 |
+| `IInputConfig` | Exposes `Deadzone` for input threshold |
+| `IMovementStrategy` | Returns `MovementInput` (Direction + Magnitude) per frame |
+| `IMovementParamsProvider` | Exposes `MovementParams` (MaxSpeed, Acceleration, etc.) |
+| `IMovementStateProvider` | Exposes `MovementState` (Velocity, Direction, Speed, IsMoving, ActualVelocity) |
+| `ICameraInput` | Exposes zoom input state (ZoomIn, ZoomOut, ZoomModeActive) |
+| `IAIController` | Exposes AI desired direction and `WantsToMove` flag for NPC movement |
+| `INpcResponse` | Handles collision response behavior on NPC |
+| `IPositionProvider` | Exposes entity position for AI state updates |
+
+## Key Types (Core/Contracts)
+
+| Type | Description |
+|---|---|
+| `MovementState` | Immutable struct with Velocity, Direction, Speed, IsMoving, ActualVelocity, IsActuallyMoving |
+| `MovementInput` | Struct with Direction and Magnitude |
+
+---
+
+## DI Architecture
+
+### Lifetime Scopes
+
+1. **PlayerMovementLifetimeScope** (Scene-level)
+   - Registered on Scene's root GameObject
+   - Provides: `IInputProvider`, `ICameraInput`, `IInputConfig`
+
+2. **EntityLifetimeScope** (Entity-level, Player)
+   - Registered on Player prefab (child of Scene Scope)
+   - Provides: `IMovementStrategy` (InputMovementStrategy), `IMovementParamsProvider`, `MovementProcessor`
+
+3. **CameraLifetimeScope** (Camera-level)
+   - Registered on Camera GameObject
+   - Provides: `CameraZoomController` component registration
+
+4. **NpcEntityLifetimeScope** (Entity-level, NPC — Planned)
+   - Registered on NPC prefab (child of Scene Scope)
+   - Provides: `IMovementStrategy` (AIMovementStrategy), `IAIController` (PatrolAIController), `INpcResponse` (DialogueResponse)
+
+---
+
+## NPC System (Planned)
+
+### Overview
+
+NPC system adds autonomous entity movement and collision interaction, reusing the existing Movement pipeline by swapping `InputMovementStrategy` with `AIMovementStrategy`.
+
+### Data Flow
+
+```
+IAIController (PatrolAIController)
+  → AIMovementStrategy (IMovementStrategy implementation)
+    → MovementProcessor (existing)
+      → MovementController (existing)
+        → Rigidbody2D
+
+NpcCollisionHandler (OnCollisionEnter2D)
+  → INpcResponse (DialogueResponse)
+    → Debug.Log (dialogue text)
+```
+
+### Core Interfaces
+
+| Interface | Purpose |
+|---|---|
+| `IAIController` | AI decision interface — returns `DesiredDirection` (Vector2) and `WantsToMove` (bool) |
+| `INpcResponse` | Collision response — `Respond()` called when player collides with NPC |
+| `IPositionProvider` | Position source for AI tick (returns `transform.position` as Vector2) |
+
+### PatrolAIController
+
+Pure C# AI controller implementing `IAIController`:
+
+- **Anchor position**: set at Start from `transform.position`
+- **Patrol radius**: configurable range around anchor
+- **States**: `Idle` (random wait duration) → `Moving` (toward target point) → `Idle`
+- **Target selection**: random point within patrol radius, clamped to valid range
+- **Arrival threshold**: transitions to Idle when within configurable distance of target
+
+### AIMovementStrategy
+
+Implements `IMovementStrategy`, bridges AI decision to movement:
+
+- Reads `IAIController.DesiredDirection` and `IAIController.WantsToMove`
+- Returns `MovementInput.Zero` when `WantsToMove` is false
+- Returns full-magnitude `MovementInput` in the desired direction otherwise
+- Calls `_controller.Tick(deltaTime, position)` before reading direction
+
+### NpcParams ScriptableObject
+
+| Field | Description |
+|---|---|
+| `PatrolRadius` | Maximum distance from anchor for random target selection |
+| `IdleDurationMin` | Minimum wait time between patrol segments |
+| `IdleDurationMax` | Maximum wait time between patrol segments |
+| `ArrivalThreshold` | Distance at which NPC considers itself arrived |
+| `DialogueText` | Text printed to console on collision |
+
+### Future Extensions
+
+| Feature | Implementation Path |
+|---|---|
+| Chase behavior | New `ChaseAIController : IAIController`, swap in `NpcEntityLifetimeScope` |
+| Dialogue UI panel | Replace `DialogueResponse` with UI-based `INpcResponse` |
+| Interaction key (talk) | Add `IInteractable` interface, check input in `NpcCollisionHandler` |
+| Behavior switching | `ICompositeAIController` that switches between sub-controllers |

@@ -230,6 +230,7 @@ Namespaces follow folder hierarchy under `Assets/Scripts/`:
 |---|---|
 | `Core/Contracts/` | `UnSrp2d.Core.Contracts` |
 | `Features/Movement/` | `UnSrp2d.Features.Movement` |
+| `Features/Npc/` | `UnSrp2d.Features.Npc` |
 | `Infrastructure/Adapters/` | `UnSrp2d.Infrastructure.Adapters` |
 | `Infrastructure/DI/` | `UnSrp2d.Infrastructure.DI` |
 
@@ -283,3 +284,20 @@ Scene Hierarchy:
 | Runtime strategy switching | Controller holds `IMovementStrategy` reference, swappable |
 | Movement lock (stun/freeze/cutscene) | Reserve `IsMovementLocked` / `CanMove` |
 | Turn speed | Not implemented — avoids Sprite design and animation complexity |
+
+## AI-driven Movement (Strategy Swap)
+
+The `IMovementStrategy` contract is designed to be swappable. NPC entities reuse the entire movement pipeline by replacing `InputMovementStrategy` with `AIMovementStrategy`:
+
+```
+InputMovementStrategy   → Player movement  (reads IInputProvider)
+AIMovementStrategy      → NPC movement     (reads IAIController)
+```
+
+Both implement `IMovementStrategy` and are registered in their respective entity-scoped LifetimeScopes (`EntityLifetimeScope` for Player, `NpcEntityLifetimeScope` for NPC).
+
+Supporting interfaces:
+- `IAIController` — `DesiredDirection` (Vector2) + `WantsToMove` (bool)
+- `IPositionProvider` — `Position` (Vector2), implemented by `TransformPositionProvider` adapter
+
+See `PROJECT_REFERENCE.md` NPC System section for full details.
